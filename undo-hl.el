@@ -42,8 +42,6 @@
 ;; deletion highlight will show every highlight for
 ;; ‘undo-hl-flash-duration’ and can be very annoying.
 
-(require 'pulse)
-
 (defgroup undo-hl nil
   "Custom group for undo-hl."
   :group 'undo)
@@ -87,6 +85,17 @@ changes that often obstruct the real edit. Keep it at least 2."
 (defvar-local undo-hl--hook-can-run nil
   "If non-nil, next after change hook can run.")
 
+(defun undo-hl--overlay-pulse (beg end face)
+  ;; Prevent subsequent change hooks activated in this command loop
+  ;; from running.
+  (setq undo-hl--hook-can-run nil)
+  (if undo-hl--overlay
+      (move-overlay undo-hl--overlay beg end)
+    (setq undo-hl--overlay (make-overlay beg end)))
+  (overlay-put undo-hl--overlay 'face face)
+  (sit-for undo-hl-flash-duration)
+  (delete-overlay undo-hl--overlay))
+
 (defun undo-hl--after-change (beg end len)
   "Highlight the inserted region after an undo.
 This is to be called from ‘after-change-functions’, see its doc
@@ -94,19 +103,7 @@ for BEG, END and LEN."
   (when (and (memq this-command undo-hl-undo-commands)
              (eq len 0)
              (>= (- end beg) undo-hl-mininum-edit-size))
-    ;; Flash the inserted region with insert face. There could be
-    ;; multiple changes made by a single undo. We effectively
-    ;; highlight only the last one. This is seems to work in practice.
-    ;; Eg, indent added by aggresive-indent precedes actual edit in
-    ;; the undo history, which means the actual edit wins and is
-    ;; highlighted, which is what we want. This should be true for
-    ;; other packages too, since they almost always do their edit
-    ;; AFTER user’s edit.
-    (if undo-hl--overlay
-        (move-overlay undo-hl--overlay beg end)
-      (setq undo-hl--overlay (make-overlay beg end)))
-    (overlay-put undo-hl--overlay 'face 'default)
-    (pulse-momentary-highlight-overlay undo-hl--overlay 'undo-hl-insert)))
+    (undo-hl--overlay-pulse beg end 'undo-hl-insert)))
 
 (defun undo-hl--before-change (beg end)
   "Highlight the to-be-deleted region before an undo.
@@ -116,18 +113,7 @@ for BEG and END."
              undo-hl--hook-can-run
              (not (eq beg end))
              (>= (- end beg) undo-hl-mininum-edit-size))
-    ;; Prevent subsequent change hooks activated in this command loop
-    ;; from running.
-    (setq undo-hl--hook-can-run nil)
-    ;; Flash the to-be-deleted region with delete face.
-    ;; ‘pulse-momentary-highlight-region’ is a bit too slow, so we
-    ;; simply add text-property.
-    (if undo-hl--overlay
-        (move-overlay undo-hl--overlay beg end)
-      (setq undo-hl--overlay (make-overlay beg end)))
-    (overlay-put undo-hl--overlay 'face 'undo-hl-delete)
-    ;; Sit-for automatically redisplays.
-    (sit-for undo-hl-flash-duration)))
+    (undo-hl--overlay-pulse beg end 'undo-hl-delete)))
 
 (defun undo-hl--cleanup-and-restart ()
   "Clean up highlight and allow change hooks to run."
