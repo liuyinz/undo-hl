@@ -3,7 +3,7 @@
 ;; Author: Yuan Fu <casouri@gmail.com>
 ;; URL: https://github.com/casouri/undo-hl
 ;; Version: 1.0
-;; Keywords: undo
+;; Keywords: convenience
 ;; Package-Requires: ((emacs "26.0"))
 
 ;;; This file is NOT part of GNU Emacs
@@ -12,7 +12,7 @@
 ;;
 ;; Sometimes in a long undo chain where Emacs jumps to a position, I
 ;; can’t tell whether the undo operation just moved to this position
-;; or it has also deleted some text. This package is meant to
+;; or it has also deleted some text.  This package is meant to
 ;; alleviate that confusion: it flashes the to-be-deleted text before
 ;; deleting so I know what is happening.
 ;;
@@ -65,7 +65,7 @@ Note that insertion highlight is not affected by this option."
 (defcustom undo-hl-mininum-edit-size 2
   "Modifications smaller than this size is ignored.
 This is a useful heuristic that avoids small text property
-changes that often obstruct the real edit. Keep it at least 2."
+changes that often obstruct the real edit.  Keep it at least 2."
   ;; How does text property change obstruct highlighting the real
   ;; edit: First, we only highlight one change every command loop;
   ;; second, a single undo could make multiple changes, including
@@ -86,6 +86,8 @@ changes that often obstruct the real edit. Keep it at least 2."
   "If non-nil, next after change hook can run.")
 
 (defun undo-hl--overlay-pulse (beg end face)
+  "Pulse highlight with region of (BEG . END) with FACE.
+Duration controlled by `undo-hl-flash-duration'."
   ;; Prevent subsequent change hooks activated in this command loop
   ;; from running.
   (setq undo-hl--hook-can-run nil)
@@ -125,8 +127,8 @@ for BEG and END."
 
 ;;;###autoload
 (define-minor-mode undo-hl-mode
-  "Highlight undo. Note that this is a local minor mode.
-I recommend only enabling this for text-editing modes."
+  "Highlight text changes caused by undo related commands.
+Note that this is a local minor mode recommended only for text-editing modes."
   :lighter " UH"
   :group 'undo
   (if undo-hl-mode
