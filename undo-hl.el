@@ -62,8 +62,9 @@ Undo-hl only run before and after undo commands."
 Note that insertion highlight is not affected by this option."
   :type 'number)
 
-(defcustom undo-hl-mininum-edit-size 2
-  "Modifications smaller than this size is ignored.
+(defcustom undo-hl-edit-size-limit '(2 . 1000)
+  "Cons of (MIN . MAX) limit of modifications size.
+When size change is smaller or lager than limits, the highlight is ignored.
 This is a useful heuristic that avoids small text property
 changes that often obstruct the real edit.  Keep it at least 2."
   ;; How does text property change obstruct highlighting the real
@@ -77,13 +78,19 @@ changes that often obstruct the real edit.  Keep it at least 2."
   ;; ignore the following text change. A simple check of size
   ;; eliminates most of such problems caused by both jit-lock and
   ;; ws-bulter.
-  :type 'integer)
+  :type '(cons integer integer))
 
 (defvar-local undo-hl--overlay nil
   "The overlay used for highlighting inserted region.")
 
 (defvar-local undo-hl--hook-can-run nil
   "If non-nil, next after change hook can run.")
+
+(defun undo-hl--edit-size-satisfied (size)
+  "Return t if modification SIZE satisfys the limits."
+  (<= (car undo-hl-edit-size-limit)
+      size
+      (cdr undo-hl-edit-size-limit)))
 
 (defun undo-hl--overlay-pulse (beg end face)
   "Pulse highlight with region of (BEG . END) with FACE.
@@ -104,7 +111,7 @@ This is to be called from ‘after-change-functions’, see its doc
 for BEG, END and LEN."
   (when (and (memq this-command undo-hl-undo-commands)
              (eq len 0)
-             (>= (- end beg) undo-hl-mininum-edit-size))
+             (undo-hl--edit-size-satisfied (- end beg)))
     (undo-hl--overlay-pulse beg end 'undo-hl-insert)))
 
 (defun undo-hl--before-change (beg end)
@@ -114,7 +121,7 @@ for BEG and END."
   (when (and (memq this-command undo-hl-undo-commands)
              undo-hl--hook-can-run
              (not (eq beg end))
-             (>= (- end beg) undo-hl-mininum-edit-size))
+             (undo-hl--edit-size-satisfied (- end beg)))
     (undo-hl--overlay-pulse beg end 'undo-hl-delete)))
 
 (defun undo-hl--cleanup-and-restart ()
